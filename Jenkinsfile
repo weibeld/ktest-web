@@ -14,8 +14,8 @@ pipeline {
 
     stage('Publish Docker Image') {
         steps {
-            sh 'docker login -u weibeld -p $DOCKER_HUB_PW'
-            sh 'docker push "$IMAGE"
+            sh 'docker login -u weibeld -p "$DOCKER_HUB_PW"'
+            sh 'docker push "$IMAGE"'
         }
     }
 }
