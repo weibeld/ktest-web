@@ -1,0 +1,7 @@
+extends layout
+
+block content
+    h1 Send Message
+    form(action = "/", method = "POST")
+        input(name="msg" placeholder="Enter your message...")
+        button(type="submit") Send
