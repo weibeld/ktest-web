@@ -10,14 +10,12 @@ var queue = process.env.QUEUE;
 if (queue == null)
   throw new Error("Must define QUEUE environment variable");
 
-amqp.connect(amqpUri)
+amqp.setup(amqpUri)
   .then(() => {
-    amqp.setQueue(queue);
-    main();
+    console.log("AMQP server setup completed");
+    main()
   })
-  .catch(err => {
-    throw err;
-  });
+  .catch(err => console.log(err));
 
 function main() {
   app.set('view engine', 'pug');
@@ -29,18 +27,19 @@ function main() {
   app.use(bodyParser.urlencoded({ extended: true }));
 
   app.get('/', function(req, res) {
+    console.log("Rendering index page");
     res.render('index');
   });
 
   app.post('/', function(req, res) {
-    amqp.request(req.body.msg)
+    console.log("Sending message " + req.body.msg);
+    amqp.request(req.body.msg, queue)
       .then((resMsg) => {
+        console.log("Receiving response " + resMsg);
         res.render('done', {msg: req.body.msg, resMsg: resMsg});
-      })
-      .catch(err => {
-        throw err;
       });
   });
 
+  console.log("Starting HTTP server on port 3000");
   app.listen(3000)
 }

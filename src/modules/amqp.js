@@ -1,49 +1,46 @@
-var amqp = require('amqplib');
+var amqp = require('amqplib')
+var amqpconnect = require('./amqpconnect.js');
 
-var mConnection = null;
-var mChannel = null;
-var mQueue = null;
-var mResQueue = "responses";
+const RESPONSE_QUEUE = "responses";
+var connection;
+var channel;
 
 module.exports = {};
 
-module.exports.connect = function(uri) {
-  return new Promise(function(resolve, reject) {
-    amqp.connect(uri)
-      .then(function(connection) {
-        mConnection = connection;
-        mConnection.createChannel()
-          .then(function(channel) {
-            mChannel = channel;
-            mChannel.assertQueue(mResQueue,
-              {durable: false, exclusive: true, autoDelete: false});
+module.exports.setup = function(uri) {
+  return new Promise((resolve, reject) => {
+    console.log("Trying to connect to AMQP server on " + uri);
+    amqpconnect.tryUntilConnect(uri, (err, conn) => {
+      if (err)
+        reject(err);
+      else {
+        connection = conn;
+        connection.createChannel()
+          .then(ch => {
+            channel = ch;
+            return channel.assertQueue(RESPONSE_QUEUE, {durable: false});
+          })
+          .then(_ => {
             resolve();
           })
-          .catch(function(err) {
-            reject("Couldn't create channel: " + err);
-          });
-      })
-      .catch(function(err) {
-        reject("Couldn't establish connection: " + err);
-      });
+          .catch(err => {
+            reject(err);
+          });; 
+      }
+    });
   });
 }
 
-module.exports.request = function(msg) {
-  return new Promise(function(resolve, reject) {
-    mChannel.sendToQueue(mQueue, Buffer.from(msg), { replyTo: mResQueue });
-    mChannel.consume(mResQueue, function(msg) {
-        resolve(msg.content.toString());
-        mChannel.cancel(msg.fields.consumerTag);
+module.exports.request = function(req, queue) {
+  return new Promise((resolve, reject) => {
+    channel.sendToQueue(queue, Buffer.from(req), {replyTo: RESPONSE_QUEUE});
+    channel.consume(RESPONSE_QUEUE, res => {
+        resolve(res.content.toString());
+        channel.cancel(res.fields.consumerTag);
       }, {noAck: true});
   });
 }
 
-module.exports.setQueue = function(queue) {
-  mQueue = queue;
-}
-
 module.exports.close = function() {
-  mConnection.close();
+  connection.close()
 }
-
